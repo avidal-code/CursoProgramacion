@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>Curso de Programacion</title>
+    <meta
+      name="description"
+      content="Landing visual de curso de programacion con efecto parallax al monitor."
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header" id="top">
+      <nav class="site-header__nav" aria-label="Principal">
+        <a class="site-header__brand" href="#inicio">Curso de Programacion</a>
+        <div class="site-header__links">
+          <a href="#inicio">Inicio</a>
+          <a href="#programa">Programa</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="scene">
+      <section
+        class="zoom-hero"
+        id="inicio"
+        aria-label="Demo de zoom al monitor"
+      >
+        <div class="zoom-hero__sticky">
+          <div class="hero-promo">
+            <p class="hero-promo__eyebrow">Curso Online · 12 Semanas</p>
+            <h1>Aprende programacion creando una landing que impacta.</h1>
+            <p class="hero-promo__text">
+              HTML, CSS y JavaScript desde cero, con proyecto final, animaciones
+              reales y una entrega pensada para sumar portfolio.
+            </p>
+            <div class="hero-promo__actions">
+              <a class="hero-promo__cta" href="#programa">Ver el efecto</a>
+              <span class="hero-promo__badge">Proyecto visual</span>
+            </div>
+          </div>
+
+          <div class="zoom-card" id="programa" data-zoom-card>
+            <img
+              class="zoom-card__image"
+              data-zoom-image
+              src="configuracion-juego-nocturna-moderna.png"
+              alt="Configuracion gaming nocturna con monitor en el centro y torre iluminada"
+              width="1536"
+              height="1024"
+            />
+            <span class="zoom-card__scanline" aria-hidden="true"></span>
+          </div>
+
+          <div class="hero-mobile-copy">
+            <p class="hero-mobile-copy__title">
+              Aprende programacion creando una landing que impacta.
+            </p>
+            <p class="hero-mobile-copy__text">
+              HTML, CSS y JavaScript desde cero.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
