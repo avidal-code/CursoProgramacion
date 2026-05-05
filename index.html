@@ -9,9 +9,10 @@
     <title>Curso de Programacion</title>
     <meta
       name="description"
-      content="Landing visual de curso de programacion con efecto parallax al monitor."
+      content="Landing visual de curso de programacion con zoom al monitor."
     />
     <link rel="stylesheet" href="styles.css" />
+    <script src="https://js.stripe.com/v3/"></script>
   </head>
   <body>
     <header class="site-header" id="top">
@@ -20,6 +21,7 @@
         <div class="site-header__links">
           <a href="#inicio">Inicio</a>
           <a href="#programa">Programa</a>
+          <a href="#precios">Precios</a>
         </div>
       </nav>
     </header>
@@ -39,8 +41,8 @@
               reales y una entrega pensada para sumar portfolio.
             </p>
             <div class="hero-promo__actions">
-              <a class="hero-promo__cta" href="#programa">Ver el efecto</a>
-              <span class="hero-promo__badge">Proyecto visual</span>
+              <a class="hero-promo__cta" href="#precios">Ver planes del curso</a>
+              <span class="hero-promo__badge">Plazas limitadas</span>
             </div>
           </div>
 
@@ -61,9 +63,188 @@
               Aprende programacion creando una landing que impacta.
             </p>
             <p class="hero-mobile-copy__text">
-              HTML, CSS y JavaScript desde cero.
+              HTML, CSS y JavaScript desde cero,
             </p>
           </div>
+        </div>
+      </section>
+
+      <section class="pricing-panel" id="precios" aria-label="Planes del curso">
+        <div class="pricing-panel__intro">
+          <p class="pricing-panel__eyebrow">Planes Del Curso</p>
+          <h2>Elige la modalidad que mejor encaje contigo.</h2>
+          <p>
+            Tres opciones para aprender HTML, CSS y JavaScript creando una
+            landing moderna desde cero y terminando con una entrega lista para
+            portfolio.
+          </p>
+        </div>
+
+        <div class="pricing-grid">
+          <article
+            class="price-card"
+            data-plan-id="base"
+            data-plan-name="Plan Base"
+            data-plan-price="290€"
+            data-plan-note="Suscripcion cada 6 meses · acceso activo"
+          >
+            <p class="price-card__label">Plan Base</p>
+            <h3>Empieza desde cero</h3>
+            <p class="price-card__amount">290€</p>
+            <p class="price-card__note">Suscripcion cada 6 meses · acceso activo</p>
+            <ul class="price-card__list">
+              <li>12 clases grabadas</li>
+              <li>Ejercicios guiados por modulo</li>
+              <li>Plantilla base del proyecto final</li>
+              <li>Acceso al material del curso</li>
+            </ul>
+            <button class="price-card__cta" type="button" data-select-plan="base">
+              Quiero este plan
+            </button>
+          </article>
+
+          <article
+            class="price-card price-card--featured"
+            data-plan-id="pro"
+            data-plan-name="Plan Pro"
+            data-plan-price="490€"
+            data-plan-note="Suscripcion anual · acceso activo"
+          >
+            <p class="price-card__label">Plan Pro</p>
+            <h3>El mas recomendado</h3>
+            <p class="price-card__amount">490€</p>
+            <p class="price-card__note">Suscripcion anual · acceso activo</p>
+            <ul class="price-card__list">
+              <li>Todo lo del Plan Base</li>
+              <li>Clases en directo dos veces por semana</li>
+              <li>Correccion del proyecto final</li>
+              <li>Feedback por correo cada semana</li>
+            </ul>
+            <button class="price-card__cta" type="button" data-select-plan="pro">
+              Reservar plaza
+            </button>
+          </article>
+
+          <article
+            class="price-card"
+            data-plan-id="mentoria"
+            data-plan-name="Plan Mentoria"
+            data-plan-price="790€"
+            data-plan-note="Suscripcion anual · plazas limitadas"
+          >
+            <p class="price-card__label">Plan Mentoria</p>
+            <h3>Seguimiento mas cercano</h3>
+            <p class="price-card__amount">790€</p>
+            <p class="price-card__note">Suscripcion anual · plazas limitadas</p>
+            <ul class="price-card__list">
+              <li>Todo lo del Plan Pro</li>
+              <li>Revision individual del codigo</li>
+              <li>Sesion 1 a 1 para portfolio</li>
+              <li>Ayuda para publicar el proyecto final</li>
+            </ul>
+            <button
+              class="price-card__cta"
+              type="button"
+              data-select-plan="mentoria"
+            >
+              Solicitar mentoria
+            </button>
+          </article>
+        </div>
+      </section>
+
+      <section class="checkout-panel" id="checkout" aria-label="Pasarela de pago">
+        <div class="checkout-panel__intro">
+          <p class="checkout-panel__eyebrow">Pasarela De Pago</p>
+          <h2>Completa tu inscripcion en menos de un minuto.</h2>
+          <p>
+            Selecciona tu plan, revisa el resumen y activa la suscripcion desde
+            este checkout visual preparado para cada modalidad del curso.
+          </p>
+        </div>
+
+        <div class="checkout-layout">
+          <aside class="checkout-summary" aria-live="polite">
+            <p class="checkout-summary__label">Tu seleccion</p>
+            <h3 id="checkout-plan-name">Plan Pro</h3>
+            <p class="checkout-summary__price" id="checkout-plan-price">490€</p>
+            <p class="checkout-summary__note" id="checkout-plan-note">
+              Suscripcion anual · acceso activo
+            </p>
+
+            <div class="checkout-summary__features">
+              <span>Pago seguro</span>
+              <span>Confirmacion inmediata</span>
+              <span>Acceso al curso tras el pago</span>
+            </div>
+
+            <div class="checkout-summary__methods" aria-label="Metodos de pago">
+              <span>Visa</span>
+              <span>Mastercard</span>
+              <span>Stripe Checkout</span>
+            </div>
+          </aside>
+
+          <form class="checkout-form" id="checkout-form">
+            <div class="checkout-form__grid">
+              <label class="field">
+                <span>Plan</span>
+                <select id="checkout-plan-select" name="plan">
+                  <option value="base">Plan Base · 290€</option>
+                  <option value="pro" selected>Plan Pro · 490€</option>
+                  <option value="mentoria">Plan Mentoria · 790€</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Nombre completo</span>
+                <input
+                  type="text"
+                  name="name"
+                  placeholder="Tu nombre y apellidos"
+                  required
+                />
+              </label>
+
+              <label class="field">
+                <span>Correo electronico para la confirmacion</span>
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="tu@email.com"
+                  required
+                />
+              </label>
+
+              <label class="field">
+                <span>Resumen del pago</span>
+                <div class="checkout-form__stripe-box">
+                  <strong>La suscripcion se completara en Stripe Checkout.</strong>
+                  <p>
+                    Tras pulsar el boton, Stripe abrira una pasarela segura para
+                    introducir tarjeta, Apple Pay o Google Pay segun el
+                    dispositivo.
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            <div class="checkout-form__footer">
+              <p class="checkout-form__secure">
+                Suscripcion cifrada con Stripe y confirmacion instantanea del plan
+                seleccionado.
+              </p>
+              <button class="checkout-form__submit" type="submit" id="checkout-submit">
+                Ir a Stripe Checkout
+              </button>
+            </div>
+
+            <p
+              class="checkout-form__status"
+              id="checkout-status"
+              aria-live="polite"
+            ></p>
+          </form>
         </div>
       </section>
     </main>

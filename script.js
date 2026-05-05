@@ -194,4 +194,301 @@ function initMonitorZoom() {
   requestRender();
 }
 
+function setStatus(node, message, type = "") {
+  node.textContent = message;
+  node.classList.remove("is-success", "is-error");
+
+  if (type) {
+    node.classList.add(`is-${type}`);
+  }
+}
+
+let stripeClientPromise;
+
+async function getStripeClient() {
+  if (stripeClientPromise) {
+    return stripeClientPromise;
+  }
+
+  stripeClientPromise = (async () => {
+    if (typeof window.Stripe === "undefined") {
+      throw new Error("Stripe.js no se ha cargado correctamente.");
+    }
+
+    let response;
+
+    try {
+      response = await fetch("/api/config");
+    } catch (_error) {
+      throw new Error(
+        "No se ha podido conectar con el servidor. Arranca npm start antes de abrir la landing.",
+      );
+    }
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok || !data.publishableKey) {
+      throw new Error(
+        data.error ||
+          "Falta configurar STRIPE_PUBLISHABLE_KEY en el servidor para abrir la pasarela.",
+      );
+    }
+
+    return window.Stripe(data.publishableKey);
+  })();
+
+  return stripeClientPromise;
+}
+
+function initCheckout() {
+  const planCards = document.querySelectorAll("[data-plan-id]");
+  const selectButtons = document.querySelectorAll("[data-select-plan]");
+  const checkoutSection = document.getElementById("checkout");
+  const planSelect = document.getElementById("checkout-plan-select");
+  const planName = document.getElementById("checkout-plan-name");
+  const planPrice = document.getElementById("checkout-plan-price");
+  const planNote = document.getElementById("checkout-plan-note");
+  const checkoutForm = document.getElementById("checkout-form");
+  const checkoutStatus = document.getElementById("checkout-status");
+  const submitButton = document.getElementById("checkout-submit");
+  const nameInput = checkoutForm?.elements.namedItem("name");
+  const emailInput = checkoutForm?.elements.namedItem("email");
+
+  if (
+    !planCards.length ||
+    !checkoutSection ||
+    !planSelect ||
+    !planName ||
+    !planPrice ||
+    !planNote ||
+    !checkoutForm ||
+    !checkoutStatus ||
+    !submitButton ||
+    !(nameInput instanceof HTMLInputElement) ||
+    !(emailInput instanceof HTMLInputElement)
+  ) {
+    return;
+  }
+
+  const plans = new Map();
+
+  planCards.forEach((card) => {
+    const id = card.getAttribute("data-plan-id");
+    const name = card.getAttribute("data-plan-name");
+    const price = card.getAttribute("data-plan-price");
+    const note = card.getAttribute("data-plan-note");
+
+    if (!id || !name || !price || !note) {
+      return;
+    }
+
+    plans.set(id, { name, price, note });
+  });
+
+  function updateCheckout(planId) {
+    const plan = plans.get(planId);
+
+    if (!plan) {
+      return;
+    }
+
+    planSelect.value = planId;
+    planName.textContent = plan.name;
+    planPrice.textContent = plan.price;
+    planNote.textContent = plan.note;
+
+    planCards.forEach((card) => {
+      card.classList.toggle(
+        "price-card--selected",
+        card.getAttribute("data-plan-id") === planId,
+      );
+    });
+
+    setStatus(checkoutStatus, "");
+  }
+
+  function scrollToCheckout() {
+    checkoutSection.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "start",
+    });
+  }
+
+  planSelect.addEventListener("change", () => {
+    updateCheckout(planSelect.value);
+  });
+
+  selectButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const planId = button.getAttribute("data-select-plan");
+
+      if (!planId) {
+        return;
+      }
+
+      updateCheckout(planId);
+      scrollToCheckout();
+    });
+  });
+
+  checkoutForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    if (!checkoutForm.reportValidity()) {
+      return;
+    }
+
+    submitButton.disabled = true;
+    setStatus(checkoutStatus, "Preparando la pasarela segura de Stripe...");
+
+    try {
+      const stripe = await getStripeClient();
+      const response = await fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          planId: planSelect.value,
+          customerName: nameInput.value.trim(),
+          customerEmail: emailInput.value.trim(),
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.sessionId) {
+        throw new Error(
+          data.error ||
+            "No se ha podido crear la sesion de suscripcion. Revisa la configuracion de Stripe.",
+        );
+      }
+
+      const result = await stripe.redirectToCheckout({
+        sessionId: data.sessionId,
+      });
+
+      if (result.error) {
+        throw result.error;
+      }
+    } catch (error) {
+      setStatus(
+        checkoutStatus,
+        error instanceof Error
+          ? error.message
+          : "No se ha podido abrir Stripe Checkout.",
+        "error",
+      );
+      submitButton.disabled = false;
+      return;
+    }
+  });
+
+  updateCheckout(planSelect.value);
+}
+
+async function initResultPage() {
+  const page = document.querySelector("[data-result-page]");
+
+  if (!page) {
+    return;
+  }
+
+  const type = page.getAttribute("data-result-page");
+
+  if (type !== "success") {
+    return;
+  }
+
+  const statusNode = document.getElementById("result-status");
+  const planNode = document.getElementById("result-plan");
+  const amountNode = document.getElementById("result-amount");
+  const emailNode = document.getElementById("result-email");
+  const subscriptionNode = document.getElementById("result-subscription");
+  const subscriptionStatusNode = document.getElementById(
+    "result-subscription-status",
+  );
+  const renewalNode = document.getElementById("result-renewal");
+
+  if (
+    !statusNode ||
+    !planNode ||
+    !amountNode ||
+    !emailNode ||
+    !subscriptionNode ||
+    !subscriptionStatusNode ||
+    !renewalNode
+  ) {
+    return;
+  }
+
+  function getSubscriptionStatusLabel(status) {
+    switch (status) {
+      case "active":
+        return "Activa";
+      case "trialing":
+        return "En prueba";
+      case "past_due":
+        return "Pago pendiente";
+      case "canceled":
+        return "Cancelada";
+      case "incomplete":
+        return "Incompleta";
+      case "incomplete_expired":
+        return "Expirada";
+      case "unpaid":
+        return "Impagada";
+      case "paused":
+        return "Pausada";
+      default:
+        return status || "Pendiente de confirmacion";
+    }
+  }
+
+  const sessionId = new URLSearchParams(window.location.search).get("session_id");
+
+  if (!sessionId) {
+    statusNode.textContent =
+      "Suscripcion confirmada, pero falta el identificador de la sesion para cargar el detalle.";
+    return;
+  }
+
+  statusNode.textContent = "Verificando la suscripcion con Stripe...";
+
+  try {
+    const response = await fetch(
+      `/api/checkout-session?session_id=${encodeURIComponent(sessionId)}`,
+    );
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        data.error || "No se ha podido recuperar la informacion de la sesion.",
+      );
+    }
+
+    planNode.textContent = data.planName || "Plan reservado";
+    amountNode.textContent = data.amountTotal || "Importe confirmado";
+    emailNode.textContent = data.customerEmail || "Pendiente de confirmacion";
+    subscriptionNode.textContent =
+      data.subscriptionId || "Pendiente de asignacion en Stripe";
+    subscriptionStatusNode.textContent = getSubscriptionStatusLabel(
+      data.subscriptionStatus,
+    );
+    renewalNode.textContent =
+      data.subscriptionCurrentPeriodEnd || "Pendiente de confirmacion";
+    statusNode.textContent =
+      data.subscriptionStatus === "active" || data.subscriptionStatus === "trialing"
+        ? "Suscripcion activada correctamente. Ya puedes continuar con el acceso al curso."
+        : "El checkout se ha completado, pero Stripe sigue confirmando el estado final de la suscripcion.";
+  } catch (error) {
+    statusNode.textContent =
+      error instanceof Error
+        ? error.message
+        : "No se ha podido verificar la sesion de suscripcion.";
+  }
+}
+
 initMonitorZoom();
+initCheckout();
+initResultPage();

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Suscripcion Confirmada | Curso de Programacion</title>
+    <meta
+      name="description"
+      content="Confirmacion de suscripcion del Curso de Programacion con Stripe Checkout."
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header" id="top">
+      <nav class="site-header__nav" aria-label="Principal">
+        <a class="site-header__brand" href="/#inicio">Curso de Programacion</a>
+        <div class="site-header__links">
+          <a href="/#inicio">Inicio</a>
+          <a href="/#programa">Programa</a>
+          <a href="/#precios">Precios</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="result-page">
+      <section class="result-card" data-result-page="success">
+        <p class="result-card__eyebrow">Suscripcion Activa</p>
+        <h1>Tu acceso ya esta activado.</h1>
+        <p class="result-card__copy" id="result-status">
+          Estamos verificando el estado de la suscripcion en Stripe.
+        </p>
+
+        <dl class="result-card__details">
+          <div>
+            <dt>Plan</dt>
+            <dd id="result-plan">Cargando...</dd>
+          </div>
+          <div>
+            <dt>Importe</dt>
+            <dd id="result-amount">Cargando...</dd>
+          </div>
+          <div>
+            <dt>Correo</dt>
+            <dd id="result-email">Cargando...</dd>
+          </div>
+          <div>
+            <dt>Suscripcion</dt>
+            <dd id="result-subscription">Cargando...</dd>
+          </div>
+          <div>
+            <dt>Estado</dt>
+            <dd id="result-subscription-status">Cargando...</dd>
+          </div>
+          <div>
+            <dt>Siguiente renovacion</dt>
+            <dd id="result-renewal">Cargando...</dd>
+          </div>
+        </dl>
+
+        <div class="result-card__actions">
+          <a class="result-card__action result-card__action--primary" href="/#inicio">
+            Volver al inicio
+          </a>
+          <a
+            class="result-card__action result-card__action--secondary"
+            href="/#precios"
+          >
+            Ver planes
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
