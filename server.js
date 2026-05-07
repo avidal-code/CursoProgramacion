@@ -192,6 +192,19 @@ function getAuthTokenFromRequest(request) {
   return request.body?.authToken || request.query?.authToken || null;
 }
 
+function formatReservationDate(value) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("es-ES", {
+    dateStyle: "full",
+    timeStyle: "short",
+  }).format(date);
+}
+
 function getWeekRange(date) {
   const start = new Date(date);
   const day = start.getDay() || 7;
@@ -251,6 +264,114 @@ function validateReservationForPlan(user, reservations, classType, classDate) {
   }
 
   return null;
+}
+
+function getEmailJsConfig() {
+  const {
+    EMAILJS_SERVICE_ID,
+    EMAILJS_TEMPLATE_ID,
+    EMAILJS_CANCEL_TEMPLATE_ID,
+    EMAILJS_PUBLIC_KEY,
+  } = process.env;
+
+  if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
+    return null;
+  }
+
+  return {
+    serviceId: EMAILJS_SERVICE_ID.trim(),
+    templateId: EMAILJS_TEMPLATE_ID.trim(),
+    cancelTemplateId: EMAILJS_CANCEL_TEMPLATE_ID?.trim() || null,
+    publicKey: EMAILJS_PUBLIC_KEY.trim(),
+    privateKey: process.env.EMAILJS_PRIVATE_KEY?.trim() || null,
+  };
+}
+
+function getReservationEmailTemplateId(emailJsConfig, emailType = "confirmation") {
+  if (emailType === "cancellation") {
+    if (!emailJsConfig.cancelTemplateId) {
+      throw new Error(
+        "Falta EMAILJS_CANCEL_TEMPLATE_ID en .env para enviar el correo de anulacion.",
+      );
+    }
+
+    return emailJsConfig.cancelTemplateId;
+  }
+
+  if (emailType !== "confirmation") {
+    throw new Error(`Tipo de correo desconocido: ${emailType}.`);
+  }
+
+  return emailJsConfig.templateId;
+}
+
+/**
+ * Envía un correo electrónico mediante EmailJS.
+ * @param {any} user Usuario destinatario.
+ * @param {any} reservation Datos de la reserva.
+ * @param {string} subject Asunto del correo.
+ * @param {string} message Cuerpo del mensaje.
+ * @param {"confirmation" | "cancellation"} [emailType] Tipo de correo.
+ */
+async function sendReservationEmail(
+  user,
+  reservation,
+  subject,
+  message,
+  emailType = "confirmation",
+) {
+  const emailJsConfig = getEmailJsConfig();
+
+  if (!emailJsConfig) {
+    return {
+      sent: false,
+      type: emailType,
+      templateId: null,
+      reason:
+        "Faltan EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID o EMAILJS_PUBLIC_KEY en .env.",
+    };
+  }
+
+  const finalTemplateId = getReservationEmailTemplateId(emailJsConfig, emailType);
+  console.log(`[EmailJS] Enviando ${emailType} con template: ${finalTemplateId}`);
+
+  const response = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      service_id: emailJsConfig.serviceId,
+      template_id: finalTemplateId,
+      user_id: emailJsConfig.publicKey,
+      accessToken: emailJsConfig.privateKey || undefined,
+      template_params: {
+        to_email: user.email,
+        to_name: user.name,
+        subject: subject,
+        message: message,
+        reservation_id: reservation.id,
+        class_type: reservation.classType,
+        class_date: formatReservationDate(reservation.classDate),
+        class_notes: reservation.notes || "Sin notas",
+        class_status: reservation.status,
+        plan_id: user.planId,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    throw new Error(
+      errorText || "EmailJS no ha podido enviar el correo de confirmacion.",
+    );
+  }
+
+  return {
+    sent: true,
+    type: emailType,
+    templateId: finalTemplateId,
+  };
 }
 
 function isSubscriptionReady(session, subscription) {
@@ -893,8 +1014,36 @@ app.post("/api/reservations", async (request, response) => {
     database.reservations.push(reservation);
     await writeDatabase(database);
 
+    let emailResult = {
+      sent: false,
+      type: "confirmation",
+      templateId: null,
+      reason: "No se ha intentado enviar el correo.",
+    };
+
+    try {
+      emailResult = await sendReservationEmail(
+        user,
+        reservation,
+        "Evento confirmado",
+        "Tu reserva se ha realizado correctamente.",
+      );
+    } catch (error) {
+      emailResult = {
+        sent: false,
+        type: "confirmation",
+        templateId: getEmailJsConfig()?.templateId || null,
+        reason:
+          error instanceof Error
+            ? error.message
+            : "No se ha podido enviar el correo de confirmacion.",
+      };
+      console.error("Error enviando confirmacion con EmailJS:", emailResult.reason);
+    }
+
     response.status(201).json({
       reservation,
+      email: emailResult,
       reservations: database.reservations.filter(
         (candidate) => candidate.userId === user.id,
       ),
@@ -939,8 +1088,35 @@ app.patch("/api/reservations/:reservationId/cancel", async (request, response) =
     reservation.cancelledAt = new Date().toISOString();
     await writeDatabase(database);
 
+    let emailResult = {
+      sent: false,
+      type: "cancellation",
+      templateId: null,
+      reason: "No se ha intentado enviar el correo.",
+    };
+
+    try {
+      emailResult = await sendReservationEmail(
+        user,
+        reservation,
+        "Evento anulado",
+        "Tu reserva ha sido anulada correctamente.",
+        "cancellation",
+      );
+    } catch (error) {
+      emailResult = {
+        sent: false,
+        type: "cancellation",
+        templateId: getEmailJsConfig()?.cancelTemplateId || null,
+        reason:
+          error instanceof Error ? error.message : "No se ha podido enviar el correo de confirmacion de anulacion.",
+      };
+      console.error("Error enviando confirmacion de anulacion con EmailJS:", emailResult.reason);
+    }
+
     response.json({
       reservation,
+      email: emailResult,
       reservations: database.reservations.filter((candidate) => candidate.userId === user.id),
     });
   } catch (error) {

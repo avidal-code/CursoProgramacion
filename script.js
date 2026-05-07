@@ -538,7 +538,7 @@ function initCheckout() {
       checkoutCopy.textContent =
         "Tu cuenta esta activa. Accede a tu area de usuario para elegir fecha, clase y notas.";
       checkoutFeatures.innerHTML =
-        "<span>Reserva directa</span><span>Clase programada</span><span>Gestion desde tu area</span>";
+        "<span>Reserva directa</span><span>Confirmacion por correo</span><span>Gestion desde tu area</span>";
       checkoutMethods.setAttribute("aria-label", "Reserva de curso");
       checkoutMethods.innerHTML =
         "<span>Curso online</span><span>Sesion programada</span><span>Sin Stripe</span>";
@@ -833,7 +833,9 @@ async function initResultPage() {
 
         setStatus(
           bookingStatus,
-          `Reserva confirmada para ${data.reservation.classDate}.`,
+          data.email?.sent
+            ? `Reserva confirmada para ${data.reservation.classDate}. Te hemos enviado un correo.`
+            : `Reserva confirmada para ${data.reservation.classDate}. No se pudo enviar el correo: ${data.email?.reason || "revisa la configuracion de EmailJS"}.`,
           "success",
         );
         bookingForm.reset();
@@ -1061,7 +1063,9 @@ async function initLoginPage() {
 
       setStatus(
         bookingStatus,
-        `Reserva confirmada para ${data.reservation.classDate}.`,
+        data.email?.sent
+          ? `Reserva confirmada para ${data.reservation.classDate}. Te hemos enviado un correo.`
+          : `Reserva confirmada para ${data.reservation.classDate}. No se pudo enviar el correo: ${data.email?.reason || "revisa la configuracion de EmailJS"}.`,
         "success",
       );
       bookingForm.reset();
@@ -1169,7 +1173,11 @@ async function initLoginPage() {
 
       setStatus(
         bookingStatus,
-        "Clase anulada correctamente.",
+        data.email?.sent
+          ? "Clase anulada correctamente. Te hemos enviado un correo de anulación."
+          : `Clase anulada correctamente. No se pudo enviar el correo: ${
+              data.email?.reason || "revisa la configuración de EmailJS"
+            }.`,
         "success",
       );
       renderReservations(reservationList, data.reservations);
