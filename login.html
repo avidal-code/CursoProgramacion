@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Acceso De Usuario | Curso de Programacion</title>
+    <meta
+      name="description"
+      content="Acceso de usuario para reservar clases del Curso de Programacion."
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://js.stripe.com/v3/"></script>
+  </head>
+  <body>
+    <header class="site-header" id="top">
+      <nav class="site-header__nav" aria-label="Principal">
+        <a class="site-header__brand" href="/#inicio">Curso de Programacion</a>
+        <div class="site-header__links">
+          <a href="/#inicio">Inicio</a>
+          <a href="/#programa" data-auth-hide>Programa</a>
+          <a href="/#precios" data-auth-hide>Precios</a>
+          <a href="/login.html#reservar" data-auth-reservation hidden>Realizar reserva</a>
+          <a class="site-header__login" href="/login.html" data-auth-action>Iniciar sesion</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="account-page">
+      <section class="login-card" id="login-card">
+        <p class="login-card__eyebrow">Acceso De Usuario</p>
+        <h1>Inicia sesion con tu cuenta.</h1>
+        <p class="login-card__copy">
+          Usa el correo y la contrasena que creaste justo antes de completar el
+          pago.
+        </p>
+
+        <form class="login-form" id="login-form">
+          <label class="field">
+            <span>Correo electronico</span>
+            <input
+              type="email"
+              name="email"
+              placeholder="tu@email.com"
+              autocomplete="email"
+              required
+            />
+          </label>
+
+          <label class="field">
+            <span>Contrasena</span>
+            <input
+              type="password"
+              name="password"
+              placeholder="Tu contrasena"
+              autocomplete="current-password"
+              required
+            />
+          </label>
+
+          <a class="login-form__register" href="/#checkout">
+            No tienes cuenta? Registrate
+          </a>
+
+          <button class="checkout-form__submit" type="submit">
+            Entrar
+          </button>
+
+          <p class="checkout-form__status" id="login-status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="booking-card" id="account-panel" hidden>
+        <span id="reservar"></span>
+        <p class="booking-card__eyebrow">Area De Usuario</p>
+        <h2>Reserva tu proxima clase.</h2>
+        <p class="booking-card__copy" id="account-user">
+          Sesion iniciada.
+        </p>
+
+        <form class="booking-form" id="account-booking-form">
+          <label class="field">
+            <span>Tipo de clase</span>
+            <select name="classType" required>
+              <option value="Clase en directo">Clase en directo</option>
+              <option value="Revision de proyecto">Revision de proyecto</option>
+              <option value="Mentoria individual">Mentoria individual</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Fecha y hora</span>
+            <input type="datetime-local" name="classDate" required />
+          </label>
+
+          <label class="field">
+            <span>Notas para la clase</span>
+            <input
+              type="text"
+              name="notes"
+              placeholder="Dudas, modulo o tema que quieres trabajar"
+            />
+          </label>
+
+          <button class="checkout-form__submit" type="submit">
+            Reservar clase
+          </button>
+
+          <button class="result-card__action result-card__action--secondary" id="logout-button" type="button">
+            Cerrar sesion
+          </button>
+
+          <p class="checkout-form__status" id="account-booking-status" aria-live="polite"></p>
+        </form>
+
+        <div class="reservation-list" id="reservation-list" aria-live="polite"></div>
+      </section>
+
+      <section class="booking-card" id="plan-panel" hidden>
+        <p class="booking-card__eyebrow">Suscripcion</p>
+        <h2>Cambiar de plan.</h2>
+        <p class="booking-card__copy" id="current-plan">
+          Plan actual pendiente de cargar.
+        </p>
+
+        <form class="booking-form" id="change-plan-form">
+          <label class="field">
+            <span>Nuevo plan</span>
+            <select name="planId" required>
+              <option value="base">Plan Base · 290€</option>
+              <option value="pro">Plan Pro · 490€</option>
+              <option value="mentoria">Plan Mentoria · 790€</option>
+            </select>
+          </label>
+
+          <button class="checkout-form__submit" type="submit">
+            Cambiar plan en Stripe
+          </button>
+
+          <p class="checkout-form__status" id="change-plan-status" aria-live="polite"></p>
+        </form>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>

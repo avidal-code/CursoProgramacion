@@ -103,11 +103,23 @@ img {
     color 0.25s ease;
 }
 
+.site-header__links .site-header__login {
+  background: linear-gradient(135deg, rgba(140, 166, 255, 0.95), rgba(215, 108, 255, 0.88));
+  color: #05070b;
+  font-weight: 700;
+}
+
 .site-header__links a:hover,
 .site-header__links a:focus-visible {
   background: rgba(255, 255, 255, 0.08);
   color: var(--text);
   outline: none;
+}
+
+.site-header__links .site-header__login:hover,
+.site-header__links .site-header__login:focus-visible {
+  background: linear-gradient(135deg, rgba(157, 180, 255, 1), rgba(224, 132, 255, 0.96));
+  color: #05070b;
 }
 
 .zoom-hero {
@@ -622,7 +634,8 @@ img {
 .field:first-child,
 .field:nth-child(2),
 .field:nth-child(3),
-.field:nth-child(4) {
+.field:nth-child(4),
+.field:nth-child(5) {
   grid-column: span 2;
 }
 
@@ -672,6 +685,35 @@ img {
   margin: 10px 0 0;
   color: var(--muted);
   line-height: 1.65;
+}
+
+.checkout-reservation {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(140, 166, 255, 0.1), transparent 65%),
+    rgba(3, 5, 10, 0.74);
+}
+
+.checkout-reservation[hidden] {
+  display: none;
+}
+
+.checkout-reservation p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.checkout-reservation .checkout-form__submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  text-decoration: none;
 }
 
 .checkout-form__footer {
@@ -728,14 +770,19 @@ img {
   color: #ffb3a7;
 }
 
-.result-page {
+.result-page,
+.account-page {
   min-height: 100vh;
   display: grid;
-  place-items: center;
+  align-content: center;
+  justify-items: center;
+  gap: 18px;
   padding: 120px 18px 48px;
 }
 
-.result-card {
+.result-card,
+.booking-card,
+.login-card {
   width: min(760px, 100%);
   padding: clamp(28px, 5vw, 44px);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -747,7 +794,13 @@ img {
   backdrop-filter: blur(16px);
 }
 
-.result-card__eyebrow {
+.booking-card[hidden] {
+  display: none;
+}
+
+.result-card__eyebrow,
+.booking-card__eyebrow,
+.login-card__eyebrow {
   margin: 0 0 12px;
   color: var(--accent);
   font-size: 0.8rem;
@@ -756,18 +809,131 @@ img {
   text-transform: uppercase;
 }
 
-.result-card h1 {
+.result-card h1,
+.booking-card h2,
+.login-card h1 {
   margin: 0;
   font-size: clamp(2.2rem, 5vw, 4rem);
   line-height: 0.96;
   letter-spacing: -0.06em;
 }
 
-.result-card__copy {
+.booking-card h2 {
+  font-size: clamp(2rem, 4vw, 3rem);
+}
+
+.result-card__copy,
+.booking-card__copy,
+.login-card__copy {
   max-width: 48ch;
   margin: 18px 0 0;
   color: var(--muted);
   line-height: 1.7;
+}
+
+.booking-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.booking-form .field:nth-child(3),
+.booking-form .checkout-form__submit,
+.booking-form .result-card__action,
+.booking-form .checkout-form__status {
+  grid-column: span 2;
+}
+
+.booking-form .result-card__action {
+  width: 100%;
+  min-height: 54px;
+}
+
+.login-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.login-form .checkout-form__submit {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.login-form__register {
+  display: block;
+  grid-column: 1 / -1;
+  justify-self: stretch;
+  width: min(100%, 360px);
+  margin: 0 auto;
+  color: var(--muted);
+  font-size: 0.92rem;
+  text-align: center;
+  text-decoration: none;
+  transition:
+    color 0.25s ease,
+    opacity 0.25s ease;
+}
+
+.login-form__register:hover,
+.login-form__register:focus-visible {
+  color: var(--text);
+  outline: none;
+}
+
+.reservation-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.reservation-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+}
+
+.reservation-list__item div {
+  display: grid;
+  gap: 6px;
+}
+
+.reservation-list__item strong {
+  color: var(--text);
+}
+
+.reservation-list__cancel {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 179, 167, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 179, 167, 0.08);
+  color: #ffcabf;
+  cursor: pointer;
+  flex: 0 0 auto;
+  font: inherit;
+  transition:
+    background 0.25s ease,
+    color 0.25s ease,
+    opacity 0.25s ease;
+}
+
+.reservation-list__cancel:hover,
+.reservation-list__cancel:focus-visible {
+  background: rgba(255, 179, 167, 0.14);
+  color: #ffe3de;
+  outline: none;
+}
+
+.reservation-list__cancel:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .result-card__details {
@@ -808,7 +974,10 @@ img {
   justify-content: center;
   min-height: 50px;
   padding: 0 18px;
+  border: 0;
   border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
   text-decoration: none;
 }
 
@@ -819,7 +988,15 @@ img {
 
 .result-card__action--secondary {
   border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--muted);
+}
+
+.result-card__action--secondary:hover,
+.result-card__action--secondary:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  outline: none;
 }
 
 @media (max-width: 900px) {
@@ -889,7 +1066,7 @@ img {
 
   .site-header__links {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 6px;
     width: 100%;
   }
@@ -1009,8 +1186,26 @@ img {
   .field:first-child,
   .field:nth-child(2),
   .field:nth-child(3),
-  .field:nth-child(4) {
+  .field:nth-child(4),
+  .field:nth-child(5),
+  .booking-form .field:nth-child(3),
+  .booking-form .checkout-form__submit,
+  .booking-form .result-card__action,
+  .booking-form .checkout-form__status {
     grid-column: span 1;
+  }
+
+  .booking-form {
+    grid-template-columns: 1fr;
+  }
+
+  .reservation-list__item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .reservation-list__cancel {
+    width: 100%;
   }
 
   .checkout-form__footer {
@@ -1027,6 +1222,15 @@ img {
     min-height: 100svh;
     padding:
       calc(env(safe-area-inset-top) + 96px)
+      14px
+      calc(env(safe-area-inset-bottom) + 40px);
+  }
+
+  .account-page {
+    min-height: 100vh;
+    min-height: 100svh;
+    padding:
+      calc(env(safe-area-inset-top) + 112px)
       14px
       calc(env(safe-area-inset-bottom) + 40px);
   }

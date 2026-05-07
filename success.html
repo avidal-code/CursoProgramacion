@@ -16,8 +16,10 @@
         <a class="site-header__brand" href="/#inicio">Curso de Programacion</a>
         <div class="site-header__links">
           <a href="/#inicio">Inicio</a>
-          <a href="/#programa">Programa</a>
-          <a href="/#precios">Precios</a>
+          <a href="/#programa" data-auth-hide>Programa</a>
+          <a href="/#precios" data-auth-hide>Precios</a>
+          <a href="/login.html#reservar" data-auth-reservation hidden>Realizar reserva</a>
+          <a class="site-header__login" href="/login.html" data-auth-action>Iniciar sesion</a>
         </div>
       </nav>
     </header>
@@ -68,6 +70,45 @@
             Ver planes
           </a>
         </div>
+      </section>
+
+      <section class="booking-card" id="booking-panel" hidden>
+        <p class="booking-card__eyebrow">Area De Usuario</p>
+        <h2>Reserva tu proxima clase.</h2>
+        <p class="booking-card__copy" id="booking-user">
+          Acceso preparado para tu cuenta.
+        </p>
+
+        <form class="booking-form" id="booking-form">
+          <label class="field">
+            <span>Tipo de clase</span>
+            <select name="classType" required>
+              <option value="Clase en directo">Clase en directo</option>
+              <option value="Revision de proyecto">Revision de proyecto</option>
+              <option value="Mentoria individual">Mentoria individual</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Fecha y hora</span>
+            <input type="datetime-local" name="classDate" required />
+          </label>
+
+          <label class="field">
+            <span>Notas para la clase</span>
+            <input
+              type="text"
+              name="notes"
+              placeholder="Dudas, modulo o tema que quieres trabajar"
+            />
+          </label>
+
+          <button class="checkout-form__submit" type="submit">
+            Reservar clase
+          </button>
+
+          <p class="checkout-form__status" id="booking-status" aria-live="polite"></p>
+        </form>
       </section>
     </main>
 
