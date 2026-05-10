@@ -213,6 +213,7 @@ app.post("/api/create-checkout-session", async (request, response) => {
   });
 });
 ```
+PARA PROBAR STRIPE, LA TARJETA DE PRUEBA ES 4242 4242 4242 4242, LA FECHA DE CADUCIDAD , EL CVC, EL NOMBRE Y EL CODIGO POSTAL SE PUEDE PONER AL AZAR.
 
 Esta funcionalidad conecta front-end y back-end de forma real: la landing no simula el pago, sino que pide al servidor una sesion valida de Stripe.
 
