@@ -11,6 +11,12 @@
       name="description"
       content="Landing visual de curso de programacion con zoom al monitor."
     />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="styles.css" />
     <script src="https://js.stripe.com/v3/"></script>
   </head>
@@ -71,7 +77,11 @@
         </div>
       </section>
 
-      <section class="pricing-panel" id="precios" aria-label="Planes del curso">
+      <section
+        class="pricing-panel pricing-panel--reveal"
+        id="precios"
+        aria-label="Planes del curso"
+      >
         <div class="pricing-panel__intro">
           <p class="pricing-panel__eyebrow">Planes Del Curso</p>
           <h2>Elige la modalidad que mejor encaje contigo.</h2>
@@ -271,7 +281,39 @@
           </form>
         </div>
       </section>
+
+      <section class="whatsapp-panel" id="whatsapp" aria-label="Atencion por WhatsApp">
+        <div class="whatsapp-panel__content">
+          <p class="whatsapp-panel__eyebrow">Asesoria Rapida</p>
+          <h2>Resuelve dudas antes de reservar tu plaza.</h2>
+          <p>
+            El enlace genera un mensaje con el plan seleccionado para que el
+            asesor pueda responderte sin pedirte otra vez el contexto.
+          </p>
+        </div>
+
+        <a
+          class="whatsapp-panel__cta"
+          href="#whatsapp"
+          target="_blank"
+          rel="noopener"
+          data-whatsapp-link
+        >
+          Consultar por WhatsApp
+        </a>
+      </section>
     </main>
+
+    <a
+      class="whatsapp-float"
+      href="#whatsapp"
+      target="_blank"
+      rel="noopener"
+      aria-label="Consultar por WhatsApp"
+      data-whatsapp-link
+    >
+      WA
+    </a>
 
     <script src="script.js"></script>
   </body>

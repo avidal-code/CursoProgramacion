@@ -194,6 +194,44 @@ function initMonitorZoom() {
   requestRender();
 }
 
+function initPricingReveal() {
+  const pricingPanel = document.querySelector(".pricing-panel--reveal");
+
+  if (!pricingPanel) {
+    return;
+  }
+
+  if (prefersReducedMotion || !("IntersectionObserver" in window)) {
+    pricingPanel.classList.add("is-pricing-visible");
+    return;
+  }
+
+  pricingPanel.classList.add("is-pricing-ready");
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) {
+          return;
+        }
+
+        pricingPanel.classList.add("is-pricing-visible");
+        window.setTimeout(() => {
+          pricingPanel.classList.remove("is-pricing-ready");
+        }, 1700);
+        observer.unobserve(pricingPanel);
+      });
+    },
+    {
+      root: null,
+      threshold: 0.28,
+      rootMargin: "0px 0px -12% 0px",
+    },
+  );
+
+  observer.observe(pricingPanel);
+}
+
 function setStatus(node, message, type = "") {
   node.textContent = message;
   node.classList.remove("is-success", "is-error");
@@ -209,6 +247,13 @@ const PLAN_NAMES = {
   pro: "Plan Pro",
   mentoria: "Plan Mentoria",
 };
+const DEFAULT_WHATSAPP_PHONE = "";
+const WHATSAPP_DEFAULT_PLAN = {
+  name: "Curso de Programacion",
+  price: "pendiente de elegir",
+  note: "Quiero recibir orientacion antes de reservar.",
+};
+let whatsappPhone = DEFAULT_WHATSAPP_PHONE;
 const PLAN_RESERVATION_RULES = {
   base: {
     allowedClassTypes: [],
@@ -395,6 +440,65 @@ function initHeaderAuthAction() {
   refreshHeaderAuthActions();
 }
 
+function buildWhatsAppUrl(plan = WHATSAPP_DEFAULT_PLAN) {
+  if (!whatsappPhone) {
+    return "#whatsapp";
+  }
+
+  const message = [
+    "Hola! Quiero informacion sobre el Curso de Programacion.",
+    `Plan seleccionado: ${plan.name}.`,
+    `Precio: ${plan.price}.`,
+    `Detalle: ${plan.note}.`,
+  ].join(" ");
+
+  return `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;
+}
+
+function updateWhatsAppLinks(plan) {
+  const href = buildWhatsAppUrl(plan);
+  const isConfigured = href.startsWith("https://wa.me/");
+
+  document.querySelectorAll("[data-whatsapp-link]").forEach((link) => {
+    link.setAttribute("href", href);
+    link.toggleAttribute("aria-disabled", !isConfigured);
+
+    if (isConfigured) {
+      link.setAttribute("target", "_blank");
+      link.setAttribute("rel", "noopener");
+      link.removeAttribute("title");
+      return;
+    }
+
+    link.removeAttribute("target");
+    link.removeAttribute("rel");
+    link.setAttribute(
+      "title",
+      "Configura WHATSAPP_PHONE en .env para activar este enlace.",
+    );
+  });
+}
+
+async function initWhatsAppLinks() {
+  updateWhatsAppLinks();
+
+  try {
+    const response = await fetch("/api/config");
+    const data = await response.json().catch(() => ({}));
+
+    if (
+      response.ok &&
+      typeof data.whatsappPhone === "string" &&
+      data.whatsappPhone.trim()
+    ) {
+      whatsappPhone = data.whatsappPhone.replace(/\D/g, "");
+      updateWhatsAppLinks();
+    }
+  } catch (_error) {
+    updateWhatsAppLinks();
+  }
+}
+
 let stripeClientPromise;
 
 async function getStripeClient() {
@@ -506,6 +610,7 @@ function initCheckout() {
     planName.textContent = plan.name;
     planPrice.textContent = plan.price;
     planNote.textContent = plan.note;
+    updateWhatsAppLinks(plan);
 
     planCards.forEach((card) => {
       card.classList.toggle(
@@ -1202,7 +1307,9 @@ async function initLoginPage() {
 }
 
 initMonitorZoom();
+initPricingReveal();
 initHeaderAuthAction();
+initWhatsAppLinks();
 initCheckout();
 initResultPage();
 initLoginPage();

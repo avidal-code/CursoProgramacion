@@ -571,6 +571,7 @@ app.get("/api/config", (_request, response) => {
 
   response.json({
     publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+    whatsappPhone: process.env.WHATSAPP_PHONE || "",
   });
 });
 
