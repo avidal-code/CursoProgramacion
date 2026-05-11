@@ -22,6 +22,7 @@ function easeInOutQuad(value) {
 
 function initMonitorZoom() {
   const section = document.querySelector(".zoom-hero");
+  const desktopQuery = window.matchMedia("(min-width: 641px)");
 
   if (!section || prefersReducedMotion) {
     return;
@@ -94,6 +95,20 @@ function initMonitorZoom() {
   const target = { ...state };
   let rafId = 0;
 
+  function resetDesktopZoom() {
+    [
+      "--image-scale",
+      "--card-scale",
+      "--image-shift-y",
+      "--blackout-opacity",
+      "--edge-progress",
+      "--promo-opacity",
+      "--promo-shift",
+    ].forEach((propertyName) => {
+      section.style.removeProperty(propertyName);
+    });
+  }
+
   function applyStyles() {
     section.style.setProperty("--image-scale", state.imageScale.toFixed(3));
     section.style.setProperty("--card-scale", state.cardScale.toFixed(3));
@@ -111,6 +126,11 @@ function initMonitorZoom() {
   }
 
   function updateTargets() {
+    if (!desktopQuery.matches) {
+      resetDesktopZoom();
+      return;
+    }
+
     const rect = section.getBoundingClientRect();
     const scrollableDistance = rect.height - window.innerHeight;
     const viewportProfile = getViewportProfile();
@@ -183,6 +203,11 @@ function initMonitorZoom() {
   function requestRender() {
     updateTargets();
 
+    if (!desktopQuery.matches) {
+      rafId = 0;
+      return;
+    }
+
     if (!rafId) {
       rafId = window.requestAnimationFrame(render);
     }
@@ -190,8 +215,75 @@ function initMonitorZoom() {
 
   window.addEventListener("scroll", requestRender, { passive: true });
   window.addEventListener("resize", requestRender);
+  if (typeof desktopQuery.addEventListener === "function") {
+    desktopQuery.addEventListener("change", requestRender);
+  } else if (typeof desktopQuery.addListener === "function") {
+    desktopQuery.addListener(requestRender);
+  }
 
   requestRender();
+}
+
+function initMobileHeroParallax() {
+  const section = document.querySelector(".zoom-hero");
+  const image = document.querySelector(".hero-mobile-parallax");
+  const mobileQuery = window.matchMedia("(max-width: 640px)");
+
+  if (!section || !image || prefersReducedMotion) {
+    return;
+  }
+
+  let rafId = 0;
+
+  function updateParallax() {
+    rafId = 0;
+
+    if (!mobileQuery.matches) {
+      section.style.removeProperty("--mobile-image-scale");
+      section.style.removeProperty("--mobile-image-shift-y");
+      section.style.removeProperty("--mobile-copy-opacity");
+      section.style.removeProperty("--blackout-opacity");
+      return;
+    }
+
+    const rect = section.getBoundingClientRect();
+    const scrollableDistance = rect.height - window.innerHeight;
+    const progress =
+      scrollableDistance > 0
+        ? clamp(-rect.top / scrollableDistance, 0, 1)
+        : 0;
+    const zoomProgress = easeOutCubic(clamp(progress / 0.86, 0, 1));
+    const blackoutProgress = easeInOutQuad(
+      clamp((progress - 0.72) / 0.28, 0, 1),
+    );
+    const copyFadeProgress = easeInOutQuad(
+      clamp((progress - 0.06) / 0.22, 0, 1),
+    );
+    const targetScale = window.innerWidth <= 390 ? 8.2 : 7.4;
+    const imageScale = lerp(1.06, targetScale, zoomProgress);
+    const imageShiftY = lerp(18, -62, clamp(progress / 0.78, 0, 1));
+
+    section.style.setProperty("--mobile-image-scale", imageScale.toFixed(3));
+    section.style.setProperty("--mobile-image-shift-y", `${imageShiftY.toFixed(2)}px`);
+    section.style.setProperty("--mobile-copy-opacity", (1 - copyFadeProgress).toFixed(3));
+    section.style.setProperty("--blackout-opacity", blackoutProgress.toFixed(3));
+  }
+
+  function requestParallax() {
+    if (!rafId) {
+      rafId = window.requestAnimationFrame(updateParallax);
+    }
+  }
+
+  window.addEventListener("scroll", requestParallax, { passive: true });
+  window.addEventListener("resize", requestParallax);
+  if (typeof mobileQuery.addEventListener === "function") {
+    mobileQuery.addEventListener("change", requestParallax);
+  } else if (typeof mobileQuery.addListener === "function") {
+    mobileQuery.addListener(requestParallax);
+  }
+
+  requestParallax();
 }
 
 function initPricingReveal() {
@@ -230,6 +322,44 @@ function initPricingReveal() {
   );
 
   observer.observe(pricingPanel);
+}
+
+function initProgramReveal() {
+  const programPanel = document.querySelector(".program-panel--reveal");
+
+  if (!programPanel) {
+    return;
+  }
+
+  if (prefersReducedMotion || !("IntersectionObserver" in window)) {
+    programPanel.classList.add("is-program-visible");
+    return;
+  }
+
+  programPanel.classList.add("is-program-ready");
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) {
+          return;
+        }
+
+        programPanel.classList.add("is-program-visible");
+        window.setTimeout(() => {
+          programPanel.classList.remove("is-program-ready");
+        }, 1700);
+        observer.unobserve(programPanel);
+      });
+    },
+    {
+      root: null,
+      threshold: 0.28,
+      rootMargin: "0px 0px -12% 0px",
+    },
+  );
+
+  observer.observe(programPanel);
 }
 
 function setStatus(node, message, type = "") {
@@ -1021,7 +1151,14 @@ async function initLoginPage() {
     accountPanel.hidden = false;
     planPanel.hidden = false;
     accountUser.textContent = `Sesion iniciada como ${user.email}.`;
-    currentPlan.textContent = `Plan actual: ${PLAN_NAMES[user.planId] || user.planId || "Pendiente"}.`;
+    const subscriptionEndDate =
+      user.subscriptionAccessEndsAt || user.subscriptionCurrentPeriodEnd;
+
+    currentPlan.textContent = subscriptionEndDate
+      ? `Plan actual: ${
+          PLAN_NAMES[user.planId] || user.planId || "Pendiente"
+        }. Tu subscripcion se renueva el dia ${subscriptionEndDate}.`
+      : `Plan actual: ${PLAN_NAMES[user.planId] || user.planId || "Pendiente"}.`;
     configureClassTypeSelect(classTypeSelect, user.planId);
     if (submitButton instanceof HTMLButtonElement) {
       submitButton.disabled = !rules.allowedClassTypes.length;
@@ -1064,6 +1201,7 @@ async function initLoginPage() {
 
       if (!response.ok) {
         clearAuthToken();
+        showLogin(data.error || "Sesion no valida o caducada.");
         return;
       }
 
@@ -1307,7 +1445,9 @@ async function initLoginPage() {
 }
 
 initMonitorZoom();
+initMobileHeroParallax();
 initPricingReveal();
+initProgramReveal();
 initHeaderAuthAction();
 initWhatsAppLinks();
 initCheckout();

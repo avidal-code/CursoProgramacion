@@ -57,6 +57,10 @@ const PLAN_RESERVATION_RULES = {
   },
 };
 
+const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
+const INACTIVE_SUBSCRIPTION_MESSAGE =
+  "Has desactivado la subscripcion, vuelvela a activar para poder acceder de nuevo a tu cuenta.";
+
 function formatSubscriptionDate(unixTimestamp) {
   if (typeof unixTimestamp !== "number") {
     return null;
@@ -65,6 +69,75 @@ function formatSubscriptionDate(unixTimestamp) {
   return new Intl.DateTimeFormat("es-ES", {
     dateStyle: "long",
   }).format(new Date(unixTimestamp * 1000));
+}
+
+function getSubscriptionPeriodEndTimestamp(subscription) {
+  if (!subscription) {
+    return null;
+  }
+
+  if (typeof subscription.current_period_end === "number") {
+    return subscription.current_period_end;
+  }
+
+  const itemPeriodEnd = subscription.items?.data?.find(
+    (item) => typeof item.current_period_end === "number",
+  )?.current_period_end;
+
+  if (typeof itemPeriodEnd === "number") {
+    return itemPeriodEnd;
+  }
+
+  if (typeof subscription.cancel_at === "number") {
+    return subscription.cancel_at;
+  }
+
+  return null;
+}
+
+function getSubscriptionAccessEndTimestamp(subscription) {
+  if (!subscription) {
+    return null;
+  }
+
+  if (typeof subscription.cancel_at === "number") {
+    return subscription.cancel_at;
+  }
+
+  if (subscription.status === "canceled" && typeof subscription.ended_at === "number") {
+    return subscription.ended_at;
+  }
+
+  return getSubscriptionPeriodEndTimestamp(subscription);
+}
+
+function getFallbackPlanEndTimestamp(user) {
+  const plan = PLAN_CATALOG[user?.planId];
+  const createdAt = new Date(user?.createdAt || user?.updatedAt || "");
+
+  if (!plan || Number.isNaN(createdAt.getTime())) {
+    return null;
+  }
+
+  const endDate = new Date(createdAt);
+
+  if (plan.billingInterval === "year") {
+    endDate.setFullYear(endDate.getFullYear() + plan.billingIntervalCount);
+  } else if (plan.billingInterval === "month") {
+    endDate.setMonth(endDate.getMonth() + plan.billingIntervalCount);
+  } else {
+    return null;
+  }
+
+  return Math.floor(endDate.getTime() / 1000);
+}
+
+function getUserAccessEndTimestamp(user) {
+  return (
+    user?.subscriptionAccessEndsAt ||
+    user?.subscriptionCurrentPeriodEnd ||
+    getFallbackPlanEndTimestamp(user)
+  );
 }
 
 function getStripeClient() {
@@ -146,13 +219,136 @@ function verifyPassword(password, storedPasswordHash) {
 }
 
 function serializeUser(user) {
+  const accessEndTimestamp = getUserAccessEndTimestamp(user);
+
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     planId: user.planId,
     subscriptionStatus: user.subscriptionStatus,
+    subscriptionCurrentPeriodEnd: formatSubscriptionDate(
+      user.subscriptionCurrentPeriodEnd,
+    ),
+    subscriptionAccessEndsAt: formatSubscriptionDate(accessEndTimestamp),
   };
+}
+
+function isUserSubscriptionActive(user) {
+  return ACTIVE_SUBSCRIPTION_STATUSES.has(user?.subscriptionStatus);
+}
+
+function deactivateUserSessions(database, userId) {
+  let changed = false;
+
+  Object.entries(database.sessions).forEach(([token, session]) => {
+    if (session.userId === userId) {
+      delete database.sessions[token];
+      changed = true;
+    }
+  });
+
+  return changed;
+}
+
+function applySubscriptionToUser(user, subscription) {
+  if (!user || !subscription) {
+    return false;
+  }
+
+  const customerId =
+    typeof subscription.customer === "string"
+      ? subscription.customer
+      : subscription.customer?.id || null;
+  let changed = false;
+
+  if (user.subscriptionStatus !== subscription.status) {
+    user.subscriptionStatus = subscription.status;
+    changed = true;
+  }
+
+  if (customerId && user.stripeCustomerId !== customerId) {
+    user.stripeCustomerId = customerId;
+    changed = true;
+  }
+
+  if (user.subscriptionId !== subscription.id) {
+    user.subscriptionId = subscription.id;
+    changed = true;
+  }
+
+  const periodEnd = getSubscriptionPeriodEndTimestamp(subscription);
+  const accessEnd = getSubscriptionAccessEndTimestamp(subscription);
+
+  if (user.subscriptionCurrentPeriodEnd !== periodEnd) {
+    user.subscriptionCurrentPeriodEnd = periodEnd;
+    changed = true;
+  }
+
+  if (user.subscriptionAccessEndsAt !== accessEnd) {
+    user.subscriptionAccessEndsAt = accessEnd;
+    changed = true;
+  }
+
+  if (user.subscriptionEndedAt !== (subscription.ended_at || null)) {
+    user.subscriptionEndedAt = subscription.ended_at || null;
+    changed = true;
+  }
+
+  if (user.subscriptionCancelAt !== (subscription.cancel_at || null)) {
+    user.subscriptionCancelAt = subscription.cancel_at || null;
+    changed = true;
+  }
+
+  if (changed) {
+    user.updatedAt = new Date().toISOString();
+  }
+
+  return changed;
+}
+
+async function syncUserSubscriptionFromStripe(database, user) {
+  if (!stripe || !user?.subscriptionId) {
+    return false;
+  }
+
+  const subscription = await stripe.subscriptions.retrieve(user.subscriptionId);
+  const changed = applySubscriptionToUser(user, subscription);
+
+  if (!isUserSubscriptionActive(user)) {
+    return deactivateUserSessions(database, user.id) || changed;
+  }
+
+  return changed;
+}
+
+async function updateUserFromSubscription(subscription) {
+  const database = await readDatabase();
+  const customerId =
+    typeof subscription.customer === "string"
+      ? subscription.customer
+      : subscription.customer?.id || null;
+  const user = database.users.find(
+    (candidate) =>
+      candidate.subscriptionId === subscription.id ||
+      (customerId && candidate.stripeCustomerId === customerId),
+  );
+
+  if (!user) {
+    return null;
+  }
+
+  const changed = applySubscriptionToUser(user, subscription);
+
+  const sessionsChanged = !isUserSubscriptionActive(user)
+    ? deactivateUserSessions(database, user.id)
+    : false;
+
+  if (changed || sessionsChanged) {
+    await writeDatabase(database);
+  }
+
+  return user;
 }
 
 function createAuthSession(database, userId) {
@@ -243,6 +439,10 @@ function countUserReservationsInWeek(reservations, userId, classDate) {
 }
 
 function validateReservationForPlan(user, reservations, classType, classDate) {
+  if (!isUserSubscriptionActive(user)) {
+    return INACTIVE_SUBSCRIPTION_MESSAGE;
+  }
+
   const rules = PLAN_RESERVATION_RULES[user.planId] || PLAN_RESERVATION_RULES.base;
 
   if (!rules.allowedClassTypes.length) {
@@ -414,8 +614,15 @@ async function createOrActivateUserFromSession(session, subscription) {
       pendingSignup?.planId || session.metadata?.planId || existingUser.planId;
     existingUser.stripeCustomerId =
       typeof session.customer === "string" ? session.customer : existingUser.stripeCustomerId;
+    existingUser.stripeCheckoutSessionId = sessionId;
     existingUser.subscriptionId = subscriptionId || existingUser.subscriptionId;
     existingUser.subscriptionStatus = subscription.status;
+    existingUser.subscriptionCurrentPeriodEnd =
+      getSubscriptionPeriodEndTimestamp(subscription);
+    existingUser.subscriptionAccessEndsAt =
+      getSubscriptionAccessEndTimestamp(subscription);
+    existingUser.subscriptionEndedAt = subscription.ended_at || null;
+    existingUser.subscriptionCancelAt = subscription.cancel_at || null;
     existingUser.updatedAt = now;
     delete database.pendingSignups[sessionId];
     await writeDatabase(database);
@@ -436,6 +643,10 @@ async function createOrActivateUserFromSession(session, subscription) {
     stripeCustomerId: typeof session.customer === "string" ? session.customer : null,
     subscriptionId,
     subscriptionStatus: subscription.status,
+    subscriptionCurrentPeriodEnd: getSubscriptionPeriodEndTimestamp(subscription),
+    subscriptionAccessEndsAt: getSubscriptionAccessEndTimestamp(subscription),
+    subscriptionEndedAt: subscription.ended_at || null,
+    subscriptionCancelAt: subscription.cancel_at || null,
     createdAt: now,
     updatedAt: now,
   };
@@ -530,6 +741,7 @@ app.post(
         case "customer.subscription.updated":
         case "customer.subscription.deleted": {
           const subscription = event.data.object;
+          await updateUserFromSubscription(subscription);
           console.log(`Cambio de suscripcion detectado: ${event.type}`, {
             subscriptionId: subscription.id,
             status: subscription.status,
@@ -634,10 +846,18 @@ app.post("/api/create-checkout-session", async (request, response) => {
       (user) => user.email === normalizedEmail,
     );
 
-    if (existingUser) {
+    if (existingUser && isUserSubscriptionActive(existingUser)) {
       response.status(409).json({
         error:
           "Ya existe una cuenta con ese correo. Cierra sesion primero o usa el area de usuario para cambiar de plan.",
+      });
+      return;
+    }
+
+    if (existingUser && !verifyPassword(accountPassword, existingUser.passwordHash)) {
+      response.status(401).json({
+        error:
+          "Esa cuenta ya existe. Usa la misma contrasena para reactivar la suscripcion.",
       });
       return;
     }
@@ -681,9 +901,10 @@ app.post("/api/create-checkout-session", async (request, response) => {
     });
 
     database.pendingSignups[session.id] = {
+      existingUserId: existingUser?.id || null,
       name: customerName.trim(),
       email: normalizedEmail,
-      passwordHash: hashPassword(accountPassword),
+      passwordHash: existingUser?.passwordHash || hashPassword(accountPassword),
       planId,
       createdAt: new Date().toISOString(),
     };
@@ -729,6 +950,18 @@ app.post("/api/change-plan", async (request, response) => {
     if (!user) {
       response.status(401).json({
         error: "Inicia sesion para cambiar de plan.",
+      });
+      return;
+    }
+
+    await syncUserSubscriptionFromStripe(database, user);
+
+    if (!isUserSubscriptionActive(user)) {
+      await writeDatabase(database);
+      response.status(403).json({
+        error: INACTIVE_SUBSCRIPTION_MESSAGE,
+        code: "subscription_inactive",
+        subscriptionStatus: user.subscriptionStatus || null,
       });
       return;
     }
@@ -854,7 +1087,7 @@ app.get("/api/checkout-session", async (request, response) => {
       subscriptionId,
       subscriptionStatus: subscription?.status || null,
       subscriptionCurrentPeriodEnd: formatSubscriptionDate(
-        subscription?.current_period_end,
+        getSubscriptionPeriodEndTimestamp(subscription),
       ),
       userCreated: Boolean(user),
       authToken,
@@ -901,6 +1134,29 @@ app.post("/api/login", async (request, response) => {
       return;
     }
 
+    if (!isUserSubscriptionActive(user)) {
+      deactivateUserSessions(database, user.id);
+      await writeDatabase(database);
+      response.status(403).json({
+        error: INACTIVE_SUBSCRIPTION_MESSAGE,
+        code: "subscription_inactive",
+        subscriptionStatus: user.subscriptionStatus || null,
+      });
+      return;
+    }
+
+    await syncUserSubscriptionFromStripe(database, user);
+
+    if (!isUserSubscriptionActive(user)) {
+      await writeDatabase(database);
+      response.status(403).json({
+        error: INACTIVE_SUBSCRIPTION_MESSAGE,
+        code: "subscription_inactive",
+        subscriptionStatus: user.subscriptionStatus || null,
+      });
+      return;
+    }
+
     const token = createAuthSession(database, user.id);
     await writeDatabase(database);
 
@@ -932,6 +1188,22 @@ app.get("/api/me", async (request, response) => {
         error: "Sesion no valida o caducada.",
       });
       return;
+    }
+
+    const subscriptionChanged = await syncUserSubscriptionFromStripe(database, user);
+
+    if (!isUserSubscriptionActive(user)) {
+      await writeDatabase(database);
+      response.status(403).json({
+        error: INACTIVE_SUBSCRIPTION_MESSAGE,
+        code: "subscription_inactive",
+        subscriptionStatus: user.subscriptionStatus || null,
+      });
+      return;
+    }
+
+    if (subscriptionChanged) {
+      await writeDatabase(database);
     }
 
     response.json({
@@ -983,6 +1255,12 @@ app.post("/api/reservations", async (request, response) => {
         error: "Inicia sesion para reservar clases.",
       });
       return;
+    }
+
+    const subscriptionChanged = await syncUserSubscriptionFromStripe(database, user);
+
+    if (subscriptionChanged) {
+      await writeDatabase(database);
     }
 
     const normalizedClassType = classType.trim();
